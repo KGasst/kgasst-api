@@ -1,35 +1,29 @@
-from flask import Flask, request, jsonify
-import requests
+from pyairtable import Table
+from dotenv import load_dotenv
 import os
 
-app = Flask(__name__)
-
-AIRTABLE_PAT = os.getenv("AIRTABLE_PAT")
+# Load environment variables from .env
+load_dotenv()
+AIRTABLE_TOKEN = os.getenv("AIRTABLE_TOKEN")
 BASE_ID = os.getenv("AIRTABLE_BASE_ID")
 
-HEADERS = {
-    "Authorization": f"Bearer {AIRTABLE_PAT}",
-    "Content-Type": "application/json"
-}
-
-@app.route("/get-records", methods=["GET"])
-def get_records():
-    table_name = request.args.get("table")
-    url = f"https://api.airtable.com/v0/{BASE_ID}/{table_name}"
-    response = requests.get(url, headers=HEADERS)
-    return jsonify(response.json())
-
-@app.route("/update-record", methods=["POST"])
-def update_record():
-    data = request.json
-    table_name = data.get("table")
-    record_id = data.get("record_id")
-    fields = data.get("fields")
-    
-    url = f"https://api.airtable.com/v0/{BASE_ID}/{table_name}/{record_id}"
-    response = requests.patch(url, headers=HEADERS, json={"fields": fields})
-    return jsonify(response.json())
+def fetch_table_data(table_name, max_records=5):
+    """Fetch a limited number of records from a given Airtable table."""
+    try:
+        table = Table(AIRTABLE_TOKEN, BASE_ID, table_name)
+        records = table.all(max_records=max_records)
+        return [record['fields'] for record in records]
+    except Exception as e:
+        return f"Error fetching {table_name}: {e}"
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    tables = [
+        "LLC INFO", "BLDGS", "UNITS", "LOANS", "INSURANCE",
+        "DUE DATES RANDOM", "ETXEA UNITS", "UTILITIES", "CCs", "FIN CEN"
+    ]
+
+    for t in tables:
+        print(f"\nFetching from {t}...")
+        data = fetch_table_data(t)
+        print(data)
 
